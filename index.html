@@ -9,32 +9,24 @@
   :root { --primary: #007aff; --danger: #ff3b30; --success: #25D366; }
   body { font-family: -apple-system, sans-serif; margin: 0; padding: 16px; background: #f5f5f7; }
   h1 { font-size: 20px; text-align: center; margin-bottom: 20px; }
-  
-  /* أزرار التبديل بين العرض والإدارة */
   .nav-tabs { display: flex; gap: 8px; margin-bottom: 20px; }
   .nav-tabs button { flex: 1; padding: 12px; border: none; border-radius: 8px; font-weight: bold; cursor: pointer; background: #e0e0e0; }
   .nav-tabs button.active { background: var(--primary); color: white; }
-
-  /* لوحة التحكم */
   #adminPanel { display: none; background: #fff; padding: 16px; border-radius: 12px; box-shadow: 0 2px 8px rgba(0,0,0,0.1); margin-bottom: 20px; }
   .form-group { margin-bottom: 12px; }
   .form-group label { display: block; font-size: 14px; margin-bottom: 4px; font-weight: bold; }
   .form-group input { width: 100%; padding: 10px; border: 1px solid #ccc; border-radius: 6px; box-sizing: border-box; }
   .btn-add { width: 100%; padding: 12px; background: var(--success); color: white; border: none; border-radius: 6px; font-size: 16px; font-weight: bold; cursor: pointer; margin-top: 10px; }
-
-  /* عرض الملفات */
   .card { background: #fff; border-radius: 12px; padding: 16px; margin-bottom: 16px; box-shadow: 0 2px 8px rgba(0,0,0,0.08); position: relative; }
   .file-name { font-weight: 600; font-size: 16px; margin-bottom: 4px; padding-left: 30px; }
   .file-type { font-size: 12px; color: #888; margin-bottom: 12px; }
-  .qr-box { display: flex; justify-content: center; margin: 12px 0; }
+  .qr-box { display: flex; justify-content: center; margin: 12px 0; min-height: 200px; align-items: center; }
   .actions { display: flex; gap: 8px; flex-wrap: wrap; }
   .btn { flex: 1; min-width: 100px; padding: 10px; border: none; border-radius: 8px; font-size: 14px; cursor: pointer; text-align: center; text-decoration: none; color: white; }
   .btn-view { background: var(--primary); }
   .btn-wa { background: var(--success); }
   .btn-mail { background: #555; }
   .btn-delete { background: var(--danger); width: auto; flex: none; padding: 6px 10px; font-size: 12px; }
-  
-  /* زر الحذف يظهر فقط في وضع الإدارة */
   .delete-btn-container { display: none; margin-top: 10px; text-align: left; }
   .admin-mode .delete-btn-container { display: block; }
 </style>
@@ -46,7 +38,6 @@
     <button id="tab-admin" onclick="switchTab('admin')">لوحة التحكم</button>
   </div>
 
-  <!-- لوحة الإدارة (إضافة ملفات) -->
   <div id="adminPanel">
     <h3 style="margin-top:0;">إضافة ملف جديد</h3>
     <div class="form-group">
@@ -54,32 +45,19 @@
       <input type="text" id="newName" placeholder="مثال: إجراءات الحوالات">
     </div>
     <div class="form-group">
-      <label>رابط الملف المباشر (Raw Link من GitHub):</label>
-      <input type="text" id="newUrl" placeholder="https://raw.githubusercontent.com/...">
+      <label>رابط الملف من GitHub (سأقوم بتحويله تلقائياً):</label>
+      <input type="text" id="newUrl" placeholder="https://github.com/... أو https://raw.githubusercontent.com/...">
     </div>
     <button class="btn-add" onclick="addFile()">إضافة الملف للواجهة</button>
   </div>
 
-  <!-- حاوية عرض الملفات -->
   <div id="list"></div>
 
 <script>
-  // ==========================================
-  // 1. نظام إدارة البيانات (الحفظ في المتصفح)
-  // ==========================================
-  let files = JSON.parse(localStorage.getItem('myFilesData')) || [
-    // الملفات الافتراضية (تظهر في البداية)
-    { name: "إجراءات إصدار الحوالات", url: "https://raw.githubusercontent.com/suhaipmahmoud/my-files/main/اجراءات اصدار الحوالات بنكي و نقدي.docx" },
-    { name: "الأوراق المطلوبة من الجمعيات", url: "https://raw.githubusercontent.com/suhaipmahmoud/my-files/main/الاوراق المطلوبة من الجمعيات الخيرية.docx" }
-  ];
+  let files = JSON.parse(localStorage.getItem('myFilesData')) || [];
 
-  function saveData() {
-    localStorage.setItem('myFilesData', JSON.stringify(files));
-  }
+  function saveData() { localStorage.setItem('myFilesData', JSON.stringify(files)); }
 
-  // ==========================================
-  // 2. رسم الواجهة
-  // ==========================================
   const listEl = document.getElementById('list');
   let isAdmin = false;
 
@@ -94,22 +72,18 @@
     files.forEach((f, index) => {
       const card = document.createElement('div');
       card.className = 'card' + (isAdmin ? ' admin-mode' : '');
-      
       const qrId = 'qr-' + index;
-      // استخدمنا الرابط المباشر الذي أدخله المستخدم
       const url = f.url; 
 
       card.innerHTML = `
         <div class="file-name">${f.name}</div>
         <div class="file-type">${getFileType(url)}</div>
         <div class="qr-box" id="${qrId}"></div>
-        
         <div class="actions">
           <a class="btn btn-view" href="${url}" target="_blank">فتح / تحميل</a>
           <a class="btn btn-wa" href="https://wa.me/?text=${encodeURIComponent(f.name + ':\n' + url)}" target="_blank">واتساب</a>
           <a class="btn btn-mail" href="mailto:?subject=${encodeURIComponent(f.name)}&body=${encodeURIComponent(url)}">إيميل</a>
         </div>
-        
         <div class="delete-btn-container">
           <button class="btn btn-delete" onclick="deleteFile(${index})">🗑️ حذف هذا الملف</button>
         </div>
@@ -117,17 +91,20 @@
       
       listEl.appendChild(card);
 
-      // توليد QR
-      new QRCode(document.getElementById(qrId), {
-        text: url,
-        width: 200,
-        height: 200,
-        correctLevel: QRCode.CorrectLevel.L // قللنا التصحيح ليتحمل الروابط الطويلة
-      });
+      // التعديل هنا: محاولة توليد QR مع التقاط الخطأ إذا كان الرابط غير صالح
+      try {
+        new QRCode(document.getElementById(qrId), {
+          text: url,
+          width: 200,
+          height: 200,
+          correctLevel: QRCode.CorrectLevel.L 
+        });
+      } catch (e) {
+        document.getElementById(qrId).innerHTML = '<span style="color:red; font-size:12px; text-align:center;">الرابط طويل جداً أو غير صالح لتوليد QR، يرجى التأكد من الرابط.</span>';
+      }
     });
   }
 
-  // دالة مساعدة لمعرفة نوع الملف من الرابط
   function getFileType(url) {
     if (url.includes('.docx') || url.includes('.doc')) return 'مستند Word';
     if (url.includes('.xlsx') || url.includes('.xls')) return 'ملف Excel';
@@ -136,21 +113,23 @@
     return 'ملف';
   }
 
-  // ==========================================
-  // 3. عمليات الإدارة (إضافة / حذف / تبديل)
-  // ==========================================
-  
   function addFile() {
-    const name = document.getElementById('newName').value.trim();
-    const url = document.getElementById('newUrl').value.trim();
+    let name = document.getElementById('newName').value.trim();
+    let url = document.getElementById('newUrl').value.trim();
 
     if (!name || !url) {
       alert('الرجاء إدخال اسم الملف والرابط!');
       return;
     }
 
+    // ميزة التحويل التلقائي من رابط GitHub العادي إلى رابط Raw المباشر
+    if (url.includes('github.com') && url.includes('/blob/')) {
+      url = url.replace('github.com', 'raw.githubusercontent.com').replace('/blob/', '/');
+      alert('تم تحويل الرابط تلقائياً إلى رابط مباشر (Raw) لكي يعمل الـ QR بشكل صحيح.');
+    }
+
     if (!url.startsWith('http')) {
-      alert('الرابط يجب أن يبدأ بـ http أو https');
+      alert('الرابط غير صالح.');
       return;
     }
 
@@ -158,10 +137,8 @@
     saveData();
     render();
 
-    // تفريغ الحقول
     document.getElementById('newName').value = '';
     document.getElementById('newUrl').value = '';
-    alert('تمت إضافة الملف بنجاح!');
   }
 
   function deleteFile(index) {
@@ -188,10 +165,9 @@
       viewTab.classList.add('active');
       adminPanel.style.display = 'none';
     }
-    render(); // إعادة الرسم لإظهار/إخفاء أزرار الحذف
+    render(); 
   }
 
-  // التشغيل الأولي
   render();
 </script>
 </body>
