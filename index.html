@@ -1,1 +1,73 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>ملفاتي</title>
+<script src="https://cdn.jsdelivr.net/npm/qrcodejs@1.0.0/qrcode.min.js"></script>
+<style>
+  body { font-family: -apple-system, sans-serif; margin: 0; padding: 16px; background: #f5f5f7; }
+  h1 { font-size: 20px; text-align: center; }
+  .card { background: #fff; border-radius: 12px; padding: 16px; margin-bottom: 16px; box-shadow: 0 2px 8px rgba(0,0,0,0.08); }
+  .file-name { font-weight: 600; font-size: 16px; margin-bottom: 4px; }
+  .file-type { font-size: 12px; color: #888; margin-bottom: 12px; }
+  .qr-box { display: flex; justify-content: center; margin: 12px 0; }
+  .actions { display: flex; gap: 8px; flex-wrap: wrap; }
+  .btn { flex: 1; min-width: 100px; padding: 10px; border: none; border-radius: 8px; font-size: 14px; cursor: pointer; text-align: center; text-decoration: none; }
+  .btn-view { background: #007aff; color: #fff; }
+  .btn-wa { background: #25D366; color: #fff; }
+  .btn-mail { background: #555; color: #fff; }
+</style>
+</head>
+<body>
 
+<h1>📁 ملفاتي</h1>
+<div id="list"></div>
+
+<script>
+// ========== الإعدادات ==========
+const YOUR_USERNAME = "suhaipmahmoud";  // اسمك في GitHub
+const YOUR_REPO = "my-files";           // اسم المستودع
+
+// قائمة الملفات: name هو الاسم اللي بيظهر، path هو اسم الملف بالضبط متل ما رفعته
+const files = [
+  { name: "إجراءات إصدار الحوالات بنكي ونقدي", path: "اجراءات اصدار الحوالات بنكي و نقدي.docx" },
+  { name: "الأوراق المطلوبة من الجمعيات الخيرية", path: "الاوراق المطلوبة من الجمعيات الخيرية.docx" }
+];
+// ==============================
+
+const listEl = document.getElementById('list');
+
+files.forEach(f => {
+  // بناء الرابط
+  const url = `https://cdn.jsdelivr.net/gh/${YOUR_USERNAME}/${YOUR_REPO}@main/${encodeURIComponent(f.path)}`;
+
+  const card = document.createElement('div');
+  card.className = 'card';
+  
+  // توليد ID فريد لكل رمز QR
+  const qrId = 'qr-' + Math.random().toString(36).substr(2, 9);
+
+  card.innerHTML = `
+    <div class="file-name">${f.name}</div>
+    <div class="file-type">${f.path.split('.').pop().toUpperCase()}</div>
+    <div class="qr-box" id="${qrId}"></div>
+    <div class="actions">
+      <a class="btn btn-view" href="${url}" target="_blank">فتح / تحميل</a>
+      <a class="btn btn-wa" href="https://wa.me/?text=${encodeURIComponent(f.name + ':\n' + url)}" target="_blank">واتساب</a>
+      <a class="btn btn-mail" href="mailto:?subject=${encodeURIComponent(f.name)}&body=${encodeURIComponent(url)}">إيميل</a>
+    </div>
+  `;
+  listEl.appendChild(card);
+
+  // توليد رمز QR
+  new QRCode(document.getElementById(qrId), {
+    text: url,
+    width: 180,
+    height: 180,
+    correctLevel: QRCode.CorrectLevel.H
+  });
+});
+</script>
+</body>
+</html>
