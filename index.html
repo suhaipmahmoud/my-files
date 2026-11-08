@@ -3,71 +3,196 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>ملفاتي</title>
+<title>لوحة إدارة الملفات</title>
 <script src="https://cdn.jsdelivr.net/npm/qrcodejs@1.0.0/qrcode.min.js"></script>
 <style>
+  :root { --primary: #007aff; --danger: #ff3b30; --success: #25D366; }
   body { font-family: -apple-system, sans-serif; margin: 0; padding: 16px; background: #f5f5f7; }
-  h1 { font-size: 20px; text-align: center; }
-  .card { background: #fff; border-radius: 12px; padding: 16px; margin-bottom: 16px; box-shadow: 0 2px 8px rgba(0,0,0,0.08); }
-  .file-name { font-weight: 600; font-size: 16px; margin-bottom: 4px; }
+  h1 { font-size: 20px; text-align: center; margin-bottom: 20px; }
+  
+  /* أزرار التبديل بين العرض والإدارة */
+  .nav-tabs { display: flex; gap: 8px; margin-bottom: 20px; }
+  .nav-tabs button { flex: 1; padding: 12px; border: none; border-radius: 8px; font-weight: bold; cursor: pointer; background: #e0e0e0; }
+  .nav-tabs button.active { background: var(--primary); color: white; }
+
+  /* لوحة التحكم */
+  #adminPanel { display: none; background: #fff; padding: 16px; border-radius: 12px; box-shadow: 0 2px 8px rgba(0,0,0,0.1); margin-bottom: 20px; }
+  .form-group { margin-bottom: 12px; }
+  .form-group label { display: block; font-size: 14px; margin-bottom: 4px; font-weight: bold; }
+  .form-group input { width: 100%; padding: 10px; border: 1px solid #ccc; border-radius: 6px; box-sizing: border-box; }
+  .btn-add { width: 100%; padding: 12px; background: var(--success); color: white; border: none; border-radius: 6px; font-size: 16px; font-weight: bold; cursor: pointer; margin-top: 10px; }
+
+  /* عرض الملفات */
+  .card { background: #fff; border-radius: 12px; padding: 16px; margin-bottom: 16px; box-shadow: 0 2px 8px rgba(0,0,0,0.08); position: relative; }
+  .file-name { font-weight: 600; font-size: 16px; margin-bottom: 4px; padding-left: 30px; }
   .file-type { font-size: 12px; color: #888; margin-bottom: 12px; }
   .qr-box { display: flex; justify-content: center; margin: 12px 0; }
   .actions { display: flex; gap: 8px; flex-wrap: wrap; }
-  .btn { flex: 1; min-width: 100px; padding: 10px; border: none; border-radius: 8px; font-size: 14px; cursor: pointer; text-align: center; text-decoration: none; }
-  .btn-view { background: #007aff; color: #fff; }
-  .btn-wa { background: #25D366; color: #fff; }
-  .btn-mail { background: #555; color: #fff; }
+  .btn { flex: 1; min-width: 100px; padding: 10px; border: none; border-radius: 8px; font-size: 14px; cursor: pointer; text-align: center; text-decoration: none; color: white; }
+  .btn-view { background: var(--primary); }
+  .btn-wa { background: var(--success); }
+  .btn-mail { background: #555; }
+  .btn-delete { background: var(--danger); width: auto; flex: none; padding: 6px 10px; font-size: 12px; }
+  
+  /* زر الحذف يظهر فقط في وضع الإدارة */
+  .delete-btn-container { display: none; margin-top: 10px; text-align: left; }
+  .admin-mode .delete-btn-container { display: block; }
 </style>
 </head>
 <body>
 
-<h1>📁 ملفاتي</h1>
-<div id="list"></div>
+  <div class="nav-tabs">
+    <button id="tab-view" class="active" onclick="switchTab('view')">واجهة العرض</button>
+    <button id="tab-admin" onclick="switchTab('admin')">لوحة التحكم</button>
+  </div>
+
+  <!-- لوحة الإدارة (إضافة ملفات) -->
+  <div id="adminPanel">
+    <h3 style="margin-top:0;">إضافة ملف جديد</h3>
+    <div class="form-group">
+      <label>اسم الملف (الذي سيظهر للعميل):</label>
+      <input type="text" id="newName" placeholder="مثال: إجراءات الحوالات">
+    </div>
+    <div class="form-group">
+      <label>رابط الملف المباشر (Raw Link من GitHub):</label>
+      <input type="text" id="newUrl" placeholder="https://raw.githubusercontent.com/...">
+    </div>
+    <button class="btn-add" onclick="addFile()">إضافة الملف للواجهة</button>
+  </div>
+
+  <!-- حاوية عرض الملفات -->
+  <div id="list"></div>
 
 <script>
-// ========== الإعدادات ==========
-const YOUR_USERNAME = "suhaipmahmoud";  // اسمك في GitHub
-const YOUR_REPO = "my-files";           // اسم المستودع
+  // ==========================================
+  // 1. نظام إدارة البيانات (الحفظ في المتصفح)
+  // ==========================================
+  let files = JSON.parse(localStorage.getItem('myFilesData')) || [
+    // الملفات الافتراضية (تظهر في البداية)
+    { name: "إجراءات إصدار الحوالات", url: "https://raw.githubusercontent.com/suhaipmahmoud/my-files/main/اجراءات اصدار الحوالات بنكي و نقدي.docx" },
+    { name: "الأوراق المطلوبة من الجمعيات", url: "https://raw.githubusercontent.com/suhaipmahmoud/my-files/main/الاوراق المطلوبة من الجمعيات الخيرية.docx" }
+  ];
 
-// قائمة الملفات: name هو الاسم اللي بيظهر، path هو اسم الملف بالضبط متل ما رفعته
-const files = [
-  { name: "إجراءات إصدار الحوالات بنكي ونقدي", path: "اجراءات اصدار الحوالات بنكي و نقدي.docx" },
-  { name: "الأوراق المطلوبة من الجمعيات الخيرية", path: "الاوراق المطلوبة من الجمعيات الخيرية.docx" }
-];
-// ==============================
+  function saveData() {
+    localStorage.setItem('myFilesData', JSON.stringify(files));
+  }
 
-const listEl = document.getElementById('list');
+  // ==========================================
+  // 2. رسم الواجهة
+  // ==========================================
+  const listEl = document.getElementById('list');
+  let isAdmin = false;
 
-files.forEach(f => {
-  // بناء الرابط
-  const url = `https://cdn.jsdelivr.net/gh/${YOUR_USERNAME}/${YOUR_REPO}@main/${encodeURIComponent(f.path)}`;
+  function render() {
+    listEl.innerHTML = '';
+    
+    if (files.length === 0) {
+      listEl.innerHTML = '<p style="text-align:center; color:#888;">لا توجد ملفات حالياً. أضف ملفاً من لوحة التحكم.</p>';
+      return;
+    }
 
-  const card = document.createElement('div');
-  card.className = 'card';
+    files.forEach((f, index) => {
+      const card = document.createElement('div');
+      card.className = 'card' + (isAdmin ? ' admin-mode' : '');
+      
+      const qrId = 'qr-' + index;
+      // استخدمنا الرابط المباشر الذي أدخله المستخدم
+      const url = f.url; 
+
+      card.innerHTML = `
+        <div class="file-name">${f.name}</div>
+        <div class="file-type">${getFileType(url)}</div>
+        <div class="qr-box" id="${qrId}"></div>
+        
+        <div class="actions">
+          <a class="btn btn-view" href="${url}" target="_blank">فتح / تحميل</a>
+          <a class="btn btn-wa" href="https://wa.me/?text=${encodeURIComponent(f.name + ':\n' + url)}" target="_blank">واتساب</a>
+          <a class="btn btn-mail" href="mailto:?subject=${encodeURIComponent(f.name)}&body=${encodeURIComponent(url)}">إيميل</a>
+        </div>
+        
+        <div class="delete-btn-container">
+          <button class="btn btn-delete" onclick="deleteFile(${index})">🗑️ حذف هذا الملف</button>
+        </div>
+      `;
+      
+      listEl.appendChild(card);
+
+      // توليد QR
+      new QRCode(document.getElementById(qrId), {
+        text: url,
+        width: 200,
+        height: 200,
+        correctLevel: QRCode.CorrectLevel.L // قللنا التصحيح ليتحمل الروابط الطويلة
+      });
+    });
+  }
+
+  // دالة مساعدة لمعرفة نوع الملف من الرابط
+  function getFileType(url) {
+    if (url.includes('.docx') || url.includes('.doc')) return 'مستند Word';
+    if (url.includes('.xlsx') || url.includes('.xls')) return 'ملف Excel';
+    if (url.includes('.pdf')) return 'ملف PDF';
+    if (url.match(/\.(jpg|jpeg|png|gif)$/i)) return 'صورة';
+    return 'ملف';
+  }
+
+  // ==========================================
+  // 3. عمليات الإدارة (إضافة / حذف / تبديل)
+  // ==========================================
   
-  // توليد ID فريد لكل رمز QR
-  const qrId = 'qr-' + Math.random().toString(36).substr(2, 9);
+  function addFile() {
+    const name = document.getElementById('newName').value.trim();
+    const url = document.getElementById('newUrl').value.trim();
 
-  card.innerHTML = `
-    <div class="file-name">${f.name}</div>
-    <div class="file-type">${f.path.split('.').pop().toUpperCase()}</div>
-    <div class="qr-box" id="${qrId}"></div>
-    <div class="actions">
-      <a class="btn btn-view" href="${url}" target="_blank">فتح / تحميل</a>
-      <a class="btn btn-wa" href="https://wa.me/?text=${encodeURIComponent(f.name + ':\n' + url)}" target="_blank">واتساب</a>
-      <a class="btn btn-mail" href="mailto:?subject=${encodeURIComponent(f.name)}&body=${encodeURIComponent(url)}">إيميل</a>
-    </div>
-  `;
-  listEl.appendChild(card);
+    if (!name || !url) {
+      alert('الرجاء إدخال اسم الملف والرابط!');
+      return;
+    }
 
-  // توليد رمز QR
-  new QRCode(document.getElementById(qrId), {
-    text: url,
-    width: 180,
-    height: 180,
-    correctLevel: QRCode.CorrectLevel.H
-  });
-});
+    if (!url.startsWith('http')) {
+      alert('الرابط يجب أن يبدأ بـ http أو https');
+      return;
+    }
+
+    files.push({ name: name, url: url });
+    saveData();
+    render();
+
+    // تفريغ الحقول
+    document.getElementById('newName').value = '';
+    document.getElementById('newUrl').value = '';
+    alert('تمت إضافة الملف بنجاح!');
+  }
+
+  function deleteFile(index) {
+    if (confirm('هل أنت متأكد من حذف هذا الملف من الواجهة؟')) {
+      files.splice(index, 1);
+      saveData();
+      render();
+    }
+  }
+
+  function switchTab(mode) {
+    const viewTab = document.getElementById('tab-view');
+    const adminTab = document.getElementById('tab-admin');
+    const adminPanel = document.getElementById('adminPanel');
+
+    if (mode === 'admin') {
+      isAdmin = true;
+      viewTab.classList.remove('active');
+      adminTab.classList.add('active');
+      adminPanel.style.display = 'block';
+    } else {
+      isAdmin = false;
+      adminTab.classList.remove('active');
+      viewTab.classList.add('active');
+      adminPanel.style.display = 'none';
+    }
+    render(); // إعادة الرسم لإظهار/إخفاء أزرار الحذف
+  }
+
+  // التشغيل الأولي
+  render();
 </script>
 </body>
 </html>
